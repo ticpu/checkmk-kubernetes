@@ -18,7 +18,9 @@ func parseConfig () []rest.Config {
 	var tokenBearerBytes []byte
 	var kubeConfig rest.Config
 	var kubeConfigList []rest.Config
+	var connectTimeout time.Duration
 
+	flag.DurationVar(&connectTimeout, "connect-timeout", 2*time.Second, "Connection timeout with SI time suffix.")
 	flag.Parse()
 
 	if flag.NArg() < 3 {
@@ -40,7 +42,7 @@ func parseConfig () []rest.Config {
 				Host:        (*kubeServer).Host,
 				APIPath:     (*kubeServer).Path,
 				BearerToken: kubeConfigBearerToken,
-				Timeout:     2 * time.Second,
+				Timeout:     connectTimeout,
 			}
 			kubeConfig.CAData = kubeConfigCAData
 			kubeConfigList = append(kubeConfigList, kubeConfig)
@@ -71,7 +73,16 @@ func main () {
 			continue
 		}
 
+		nodes, err := client.CoreV1().Nodes().List(metav1.ListOptions{})
+		if err != nil {
+			log.Printf("Unable to obtain pod list: %s", err.Error())
+			continue
+		}
+
 		fmt.Printf("There are %d pods in the cluster.\n", len(pods.Items))
+		for _, node := range nodes.Items {
+			fmt.Printf("Node: %s, %v\n", node.Name, node.Status.Allocatable)
+		}
 		os.Exit(0)
 	}
 
